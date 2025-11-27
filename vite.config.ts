@@ -1,0 +1,47 @@
+import { defineConfig, loadEnv } from 'vite';
+import react from '@vitejs/plugin-react';
+import fs from 'fs';
+import path from 'path';
+import { fileURLToPath } from 'url';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+// Custom plugin to copy manifest and icons to dist folder
+const copyExtensionFiles = () => {
+  return {
+    name: 'copy-extension-files',
+    closeBundle: async () => {
+      // Copy manifest.json
+      if (fs.existsSync('manifest.json')) {
+        fs.copyFileSync('manifest.json', 'dist/manifest.json');
+        console.log('✓ manifest.json copied to dist');
+      }
+      // Copy icons folder if it exists
+      if (fs.existsSync('icons')) {
+        fs.cpSync('icons', 'dist/icons', { recursive: true });
+        console.log('✓ icons folder copied to dist');
+      }
+    }
+  };
+};
+
+export default defineConfig(({ mode }) => {
+  const env = loadEnv(mode, '.', '');
+  return {
+    plugins: [react(), copyExtensionFiles()],
+    define: {
+      // Inject the API key into the build
+      'process.env.API_KEY': JSON.stringify(env.API_KEY),
+    },
+    build: {
+      outDir: 'dist',
+      emptyOutDir: true,
+      rollupOptions: {
+        input: {
+          main: path.resolve(__dirname, 'index.html'),
+        },
+      },
+    },
+  };
+});

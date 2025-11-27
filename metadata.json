@@ -1,0 +1,7 @@
+{
+  "name": "Dege Megaphone",
+  "description": "A seamless voice recording and sharing tool designed for social platforms. Record, enhance with AI, and share instantly via QR code or link.",
+  "requestFramePermissions": [
+    "microphone"
+  ]
+}
