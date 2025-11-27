@@ -5,7 +5,10 @@ import ShareView from './components/ShareView';
 import SettingsView from './components/SettingsView';
 import { formatTime } from './services/audioUtils';
 import { analyzeAudio } from './services/geminiService';
-import { Mic, Square, Play, Pause, Sparkles, Send, Trash2, RotateCcw, Wand2, Download, AlertCircle, ArrowRight, Settings } from 'lucide-react';
+import { Mic, Square, Play, Pause, Sparkles, Send, Trash2, RotateCcw, Wand2, Download, AlertCircle, ArrowRight, Settings, ExternalLink, Volume2 } from 'lucide-react';
+
+// Declare chrome to avoid TypeScript errors when accessing extension APIs
+declare const chrome: any;
 
 const MAX_RECORDING_TIME = 60; // seconds
 
@@ -13,11 +16,16 @@ const App: React.FC = () => {
   const [appState, setAppState] = useState<AppState>(AppState.IDLE);
   const [time, setTime] = useState(0);
   const [audioData, setAudioData] = useState<AudioMetadata | null>(null);
+  
+  // Playback State
   const [isPlaying, setIsPlaying] = useState(false);
+  const [playbackTime, setPlaybackTime] = useState(0);
+  
   const [stream, setStream] = useState<MediaStream | null>(null);
   const [analysis, setAnalysis] = useState<AIAnalysisResult | null>(null);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [permissionError, setPermissionError] = useState(false);
   
   // Settings State
   const [webhookConfig, setWebhookConfig] = useState<WebhookConfig>({});
@@ -44,6 +52,14 @@ const App: React.FC = () => {
     localStorage.setItem('dege_webhook_config', JSON.stringify(config));
   };
 
+  const openPermissionTab = () => {
+    if (typeof chrome !== 'undefined' && chrome.tabs && chrome.runtime) {
+        chrome.tabs.create({ url: chrome.runtime.getURL('index.html') });
+    } else {
+        window.open(window.location.href, '_blank');
+    }
+  };
+
   // --- Recording Logic ---
   const startRecording = async () => {
     try {
@@ -51,10 +67,13 @@ const App: React.FC = () => {
         audio: {
             echoCancellation: true,
             noiseSuppression: true,
-            autoGainControl: true
+            autoGainControl: true,
+            channelCount: 1, // Mono is usually fine for speech and safer
+            sampleRate: 44100
         } 
       });
       setStream(audioStream);
+      setPermissionError(false);
       
       const mediaRecorder = new MediaRecorder(audioStream, { mimeType: 'audio/webm' });
       mediaRecorderRef.current = mediaRecorder;
@@ -66,6 +85,16 @@ const App: React.FC = () => {
 
       mediaRecorder.onstop = () => {
         const blob = new Blob(chunksRef.current, { type: 'audio/webm' });
+        
+        // Validation: Check if blob is too small (likely silent or failed)
+        if (blob.size < 1000) {
+             setError("Recording was empty or too short. Please try again.");
+             audioStream.getTracks().forEach(track => track.stop());
+             setStream(null);
+             setAppState(AppState.IDLE);
+             return;
+        }
+
         const url = URL.createObjectURL(blob);
         
         setAppState(AppState.PROCESSING);
@@ -74,7 +103,7 @@ const App: React.FC = () => {
         setTimeout(() => {
             setAudioData({ blob, url, duration: time, timestamp: Date.now() });
             setAppState(AppState.REVIEW);
-        }, 1500);
+        }, 1200);
         
         audioStream.getTracks().forEach(track => track.stop());
         setStream(null);
@@ -98,7 +127,8 @@ const App: React.FC = () => {
 
     } catch (err) {
       console.error("Error accessing microphone:", err);
-      setError("Microphone access denied. Please enable permissions.");
+      setError("Microphone access denied.");
+      setPermissionError(true);
     }
   };
 
@@ -119,28 +149,36 @@ const App: React.FC = () => {
 
   // --- Playback Logic ---
   const togglePlayback = () => {
-    if (!audioRef.current || !audioData) return;
+    if (!audioRef.current) return;
     
     if (isPlaying) {
       audioRef.current.pause();
     } else {
-      audioRef.current.play();
+      audioRef.current.play().catch(e => {
+        console.error("Playback failed", e);
+        setError("Playback failed. Check system volume.");
+      });
     }
-    setIsPlaying(!isPlaying);
   };
 
-  useEffect(() => {
-    if (audioData) {
-      audioRef.current = new Audio(audioData.url);
-      audioRef.current.onended = () => setIsPlaying(false);
-    }
-    return () => {
+  const onTimeUpdate = () => {
       if (audioRef.current) {
-        audioRef.current.pause();
-        audioRef.current = null;
+          setPlaybackTime(audioRef.current.currentTime);
       }
-    };
-  }, [audioData]);
+  };
+
+  const onAudioEnded = () => {
+      setIsPlaying(false);
+      setPlaybackTime(0);
+  };
+
+  const onSeek = (e: React.ChangeEvent<HTMLInputElement>) => {
+      const time = parseFloat(e.target.value);
+      if (audioRef.current) {
+          audioRef.current.currentTime = time;
+          setPlaybackTime(time);
+      }
+  };
 
   // --- AI & Reset Logic ---
   const handleAnalyzeAndShare = async () => {
@@ -170,7 +208,9 @@ const App: React.FC = () => {
     setAudioData(null);
     setAnalysis(null);
     setTime(0);
+    setPlaybackTime(0);
     setError(null);
+    setPermissionError(false);
     setAppState(AppState.IDLE);
     setIsPlaying(false);
   };
@@ -228,9 +268,20 @@ const App: React.FC = () => {
                 <h2 className="text-xl font-bold text-gray-800 mb-2">Tap to Record</h2>
                 <p className="text-sm text-gray-500">Capture voice notes instantly.</p>
                 {error && (
-                <div className="mt-6 p-3 bg-red-50 text-red-600 text-xs rounded-lg flex items-center justify-center gap-2">
-                    <AlertCircle size={14} />
-                    {error}
+                <div className="mt-6 flex flex-col items-center">
+                    <div className="p-3 bg-red-50 text-red-600 text-xs rounded-lg flex items-center justify-center gap-2 mb-2">
+                        <AlertCircle size={14} />
+                        {error}
+                    </div>
+                    {permissionError && (
+                        <button 
+                            onClick={openPermissionTab}
+                            className="flex items-center gap-1.5 px-4 py-2 bg-blue-500 text-white text-xs font-semibold rounded-lg shadow-md hover:bg-blue-600 transition-colors"
+                        >
+                            <ExternalLink size={12} />
+                            Authorize in New Tab
+                        </button>
+                    )}
                 </div>
                 )}
             </div>
@@ -238,19 +289,18 @@ const App: React.FC = () => {
 
             {appState === AppState.RECORDING && (
             <div className="w-full flex flex-col items-center animate-fade-in">
-                <div className="mb-6 flex flex-col items-center">
-                <div className={`text-5xl font-mono font-light tabular-nums transition-colors ${time > MAX_RECORDING_TIME - 10 ? 'text-red-500' : 'text-gray-800'}`}>
-                    {formatTime(time)}
-                </div>
-                {time > MAX_RECORDING_TIME - 10 && (
-                    <span className="text-xs text-red-500 mt-1 font-medium animate-pulse">
-                        Ending in {MAX_RECORDING_TIME - time}s
-                    </span>
-                )}
+                <div className="mb-4 flex flex-col items-center">
+                    <div className="flex items-center gap-2 mb-2">
+                        <div className="w-2 h-2 rounded-full bg-red-500 animate-pulse"></div>
+                        <span className="text-xs font-semibold text-red-500 uppercase tracking-wider">Recording</span>
+                    </div>
+                    <div className={`text-5xl font-mono font-light tabular-nums transition-colors ${time > MAX_RECORDING_TIME - 10 ? 'text-red-500' : 'text-gray-800'}`}>
+                        {formatTime(time)}
+                    </div>
                 </div>
                 
-                <div className="w-full mb-8">
-                <AudioVisualizer stream={stream} isRecording={true} />
+                <div className="w-full mb-8 relative">
+                    <AudioVisualizer stream={stream} isRecording={true} />
                 </div>
 
                 <button 
@@ -273,72 +323,87 @@ const App: React.FC = () => {
                         <path d="M50 5 A 45 45 0 0 1 95 50" fill="none" stroke="#3b82f6" strokeWidth="4" strokeLinecap="round" />
                     </svg>
                 </div>
-                <h3 className="text-lg font-semibold text-gray-800">Optimizing...</h3>
-                <p className="text-xs text-gray-500">Removing noise & enhancing clarity</p>
+                <h3 className="text-lg font-semibold text-gray-800">Optimizing Audio...</h3>
+                <p className="text-xs text-gray-500">Checking levels & clarity</p>
             </div>
             )}
 
             {appState === AppState.REVIEW && audioData && (
             <div className="w-full flex flex-col items-center animate-fade-in space-y-6">
-                <div className="text-center">
-                <div className="text-4xl font-mono text-gray-800 mb-1">{formatTime(audioData.duration)}</div>
-                <p className="text-gray-400 text-xs flex items-center justify-center gap-1">
-                    <Sparkles size={10} className="text-green-500"/>
-                    Audio Enhanced
-                </p>
+                
+                {/* Custom Audio Player UI */}
+                <div className="w-full bg-gray-50 rounded-2xl p-4 border border-gray-100 shadow-sm">
+                    {/* Hidden Audio Element */}
+                    <audio 
+                        ref={audioRef} 
+                        src={audioData.url} 
+                        onTimeUpdate={onTimeUpdate} 
+                        onEnded={onAudioEnded}
+                        onPlay={() => setIsPlaying(true)}
+                        onPause={() => setIsPlaying(false)}
+                    />
+                    
+                    <div className="flex flex-col items-center">
+                        <div className="text-3xl font-mono text-gray-800 mb-2 font-medium tracking-tight">
+                            {formatTime(playbackTime)} <span className="text-gray-300 text-xl">/ {formatTime(audioData.duration)}</span>
+                        </div>
+                        
+                        {/* Progress Bar */}
+                        <div className="w-full flex items-center gap-3 mb-4">
+                            <span className="text-[10px] text-gray-400 font-mono">{formatTime(playbackTime)}</span>
+                            <input 
+                                type="range" 
+                                min="0" 
+                                max={audioData.duration || 1} 
+                                step="0.1"
+                                value={playbackTime}
+                                onChange={onSeek}
+                                className="flex-1 h-1.5 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-blue-600 hover:accent-blue-700"
+                            />
+                            <span className="text-[10px] text-gray-400 font-mono">{formatTime(audioData.duration)}</span>
+                        </div>
+
+                        {/* Play Controls */}
+                         <button 
+                            onClick={togglePlayback}
+                            className="w-14 h-14 bg-gray-900 rounded-full flex items-center justify-center text-white shadow-lg hover:scale-105 transition-transform active:scale-95"
+                        >
+                            {isPlaying ? <Pause size={24} fill="currentColor" /> : <Play size={24} fill="currentColor" className="ml-1"/>}
+                        </button>
+                    </div>
                 </div>
 
-                <div className="flex items-center justify-center space-x-3">
-                <button 
-                    onClick={resetApp}
-                    className="p-3 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-full transition-all"
-                    title="Delete"
+                <div className="flex items-center justify-center space-x-3 w-full">
+                    <button 
+                        onClick={resetApp}
+                        className="flex-1 py-3 bg-white border border-gray-200 text-gray-500 hover:text-red-500 hover:border-red-200 hover:bg-red-50 rounded-xl transition-all flex items-center justify-center gap-2 text-xs font-medium"
                     >
-                    <Trash2 size={20} />
-                </button>
+                        <Trash2 size={16} /> Delete
+                    </button>
 
-                <button 
-                    onClick={togglePlayback}
-                    className="w-16 h-16 bg-gray-900 rounded-full flex items-center justify-center text-white shadow-xl hover:scale-105 transition-transform"
-                >
-                    {isPlaying ? <Pause size={28} fill="currentColor" /> : <Play size={28} fill="currentColor" className="ml-1"/>}
-                </button>
-
-                <button 
-                    onClick={handleDownload}
-                    className="p-3 text-gray-400 hover:text-green-600 hover:bg-green-50 rounded-full transition-all"
-                    title="Save"
+                    <button 
+                        onClick={handleDownload}
+                        className="flex-1 py-3 bg-white border border-gray-200 text-gray-500 hover:text-green-600 hover:border-green-200 hover:bg-green-50 rounded-xl transition-all flex items-center justify-center gap-2 text-xs font-medium"
                     >
-                    <Download size={20} />
-                </button>
-
-                <button 
-                    onClick={() => {
-                        resetApp();
-                        setTimeout(startRecording, 100);
-                    }}
-                    className="p-3 text-gray-400 hover:text-blue-500 hover:bg-blue-50 rounded-full transition-all"
-                    title="Retry"
-                    >
-                    <RotateCcw size={20} />
-                </button>
+                        <Download size={16} /> Save
+                    </button>
                 </div>
 
                 {error && (
                 <div className="w-full bg-red-50 border border-red-100 rounded-xl p-3 flex items-start space-x-3 text-left">
                     <AlertCircle className="text-red-500 shrink-0 mt-0.5" size={18} />
                     <div className="flex-1">
-                        <p className="text-sm text-red-800 font-medium">Analysis Failed</p>
+                        <p className="text-sm text-red-800 font-medium">Notice</p>
                         <p className="text-xs text-red-600 mt-1">{error}</p>
                     </div>
                 </div>
                 )}
 
-                <div className="w-full space-y-3 pb-4">
+                <div className="w-full pt-2">
                 <button 
                     onClick={handleAnalyzeAndShare}
                     disabled={isAnalyzing}
-                    className={`w-full py-3 rounded-xl flex items-center justify-center space-x-2 font-semibold shadow-lg transition-all text-sm ${
+                    className={`w-full py-3.5 rounded-xl flex items-center justify-center space-x-2 font-semibold shadow-lg transition-all text-sm ${
                         isAnalyzing 
                             ? 'bg-gray-200 text-gray-400' 
                             : error 
@@ -362,7 +427,7 @@ const App: React.FC = () => {
                 {error && (
                     <button
                         onClick={handleShareDirectly}
-                        className="w-full py-2 text-gray-500 hover:text-gray-800 text-xs font-medium flex items-center justify-center space-x-1"
+                        className="w-full py-2 mt-2 text-gray-500 hover:text-gray-800 text-xs font-medium flex items-center justify-center space-x-1"
                     >
                         <span>Skip AI & Share</span>
                         <ArrowRight size={12} />

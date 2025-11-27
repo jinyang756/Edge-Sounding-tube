@@ -41,11 +41,19 @@ npm run build
 
 ### 2. 配置环境变量
 
+**本地开发**：
 在项目根目录下创建一个 `.env` 文件，并填入您的 Google Gemini API Key：
 
 ```env
 API_KEY=your_google_gemini_api_key_here
 ```
+
+**GitHub Actions (重要)**：
+如果您在 GitHub 上构建失败，请检查 Secrets 配置：
+1.  进入 Settings -> Secrets and variables -> Actions。
+2.  确保 Secret 名称是 **`API_KEY`** (全大写，下划线)。
+3.  ❌ 错误示例：`API KEY`, `Gemini Key`.
+4.  ✅ 正确示例：`API_KEY`.
 
 > **注意**：`.env` 文件已被包含在 `.gitignore` 中，**请勿**将其提交到 GitHub。
 
@@ -58,6 +66,17 @@ API_KEY=your_google_gemini_api_key_here
 3.  开启右上角的 **"开发人员模式" (Developer mode)**。
 4.  点击 **"加载解压缩的扩展" (Load unpacked)**。
 5.  选择项目目录下的 `dist` 文件夹。
+
+## ❓ 常见问题 (Troubleshooting)
+
+### 🔴 无法录音 / Microphone access denied
+**现象**：点击录音按钮，提示 "Permission denied"，且浏览器没有弹出授权框。
+**原因**：浏览器的侧边栏 (Side Panel) 有时会默认阻止权限请求弹窗。
+**解决方法**：
+1.  在插件报错界面，点击蓝色的 **"Authorize in New Tab"** 按钮。
+2.  这会在一个全屏标签页中打开插件。
+3.  再次点击录音，浏览器就会正常弹出“允许使用麦克风”的提示。
+4.  点击“允许”后，回到侧边栏即可正常使用。
 
 ## ⚙️ Webhook 配置指南
 

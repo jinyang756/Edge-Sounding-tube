@@ -27,12 +27,18 @@ const copyExtensionFiles = () => {
 };
 
 export default defineConfig(({ mode }) => {
-  const env = loadEnv(mode, '.', '');
+  // Load env file based on `mode` in the current working directory.
+  // Set the third parameter to '' to load all env regardless of the `VITE_` prefix.
+  const env = loadEnv(mode, path.resolve('.'), '');
+  
+  // In CI/CD (GitHub Actions), values might be in process.env, not in a .env file loaded by loadEnv
+  const apiKey = env.API_KEY || process.env.API_KEY;
+
   return {
     plugins: [react(), copyExtensionFiles()],
     define: {
       // Inject the API key into the build
-      'process.env.API_KEY': JSON.stringify(env.API_KEY),
+      'process.env.API_KEY': JSON.stringify(apiKey),
     },
     build: {
       outDir: 'dist',
