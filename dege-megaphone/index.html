@@ -1,0 +1,375 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>传声筒 - 专业录音与音频转换工具</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdn.jsdelivr.net/npm/font-awesome@4.7.0/css/font-awesome.min.css" rel="stylesheet">
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        primary: '#165DFF',
+                        secondary: '#36CFC9',
+                        dark: '#1D2129',
+                        light: '#F2F3F5',
+                        'dark-card': '#272E3B',
+                        'dark-hover': '#374151',
+                        'dark-border': '#384354'
+                    },
+                    fontFamily: {
+                        inter: ['Inter', 'system-ui', 'sans-serif'],
+                    },
+                }
+            }
+        }
+    </script>
+    <style type="text/tailwindcss">
+        @layer utilities {
+            .content-auto {
+                content-visibility: auto;
+            }
+            .btn-pulse {
+                animation: pulse 1.5s infinite;
+            }
+            .gradient-bg {
+                background: linear-gradient(135deg, #165DFF 0%, #36CFC9 100%);
+            }
+            .recording-active {
+                background-color: #ef4444;
+                animation: pulse 1.5s infinite;
+            }
+            .recording-inactive {
+                background-color: #165DFF;
+            }
+            .card-shadow {
+                box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+            }
+            .btn-effect {
+                transition: all 0.3s ease;
+            }
+            .btn-effect:hover:not(:disabled) {
+                transform: translateY(-2px);
+                box-shadow: 0 4px 12px rgba(22, 93, 255, 0.3);
+            }
+            .btn-effect:active:not(:disabled) {
+                transform: translateY(0);
+            }
+            .waveform-container {
+                background-color: rgba(255, 255, 255, 0.05);
+                border-radius: 0.75rem;
+                position: relative;
+                overflow: hidden;
+            }
+            .feature-card {
+                transition: all 0.3s ease;
+            }
+            .feature-card:hover {
+                transform: translateY(-5px);
+                box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+            }
+        }
+
+        @keyframes pulse {
+            0% {
+                box-shadow: 0 0 0 0 rgba(22, 93, 255, 0.4);
+            }
+            70% {
+                box-shadow: 0 0 0 10px rgba(22, 93, 255, 0);
+            }
+            100% {
+                box-shadow: 0 0 0 0 rgba(22, 93, 255, 0);
+            }
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .animate-fadeIn {
+            animation: fadeIn 0.5s ease forwards;
+        }
+        
+        /* 加载动画 */
+        .animate-pulse {
+            animation: pulse 1s infinite;
+        }
+
+        /* 自定义滚动条 */
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #1D2129;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #4B5563;
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #6B7280;
+        }
+    </style>
+</head>
+<body class="bg-dark text-light font-inter min-h-screen flex flex-col">
+    <!-- 顶部导航 -->
+    <header class="bg-dark-card border-b border-dark-border sticky top-0 z-50">
+        <div class="container mx-auto px-4 py-3 flex justify-between items-center">
+            <div class="flex items-center space-x-2">
+                <div class="w-10 h-10 rounded-lg gradient-bg flex items-center justify-center">
+                    <i class="fa fa-microphone text-white text-xl"></i>
+                </div>
+                <h1 class="text-xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-primary to-secondary">传声筒</h1>
+            </div>
+            <div class="hidden md:flex items-center space-x-6">
+                <a href="#features" class="text-gray-300 hover:text-white transition-colors">功能特点</a>
+                <a href="#usage" class="text-gray-300 hover:text-white transition-colors">使用说明</a>
+                <a href="#faq" class="text-gray-300 hover:text-white transition-colors">常见问题</a>
+            </div>
+            <button class="md:hidden text-gray-300 hover:text-white">
+                <i class="fa fa-bars text-xl"></i>
+            </button>
+        </div>
+    </header>
+
+    <!-- 主要内容 -->
+    <main class="flex-grow container mx-auto px-4 py-8 md:py-12">
+        <!-- 介绍部分 -->
+        <section class="mb-12 animate-fadeIn" style="animation-delay: 0.1s">
+            <div class="text-center max-w-3xl mx-auto">
+                <h2 class="text-[clamp(1.8rem,5vw,2.8rem)] font-bold mb-4 bg-clip-text text-transparent bg-gradient-to-r from-primary to-secondary">专业录音与音频转换工具</h2>
+                <p class="text-gray-400 text-lg mb-8">简洁高效的录音体验，支持多种音频格式转换，所有操作在本地完成，保护您的隐私安全</p>
+                <div class="inline-flex items-center px-4 py-2 bg-dark-card rounded-full text-sm text-gray-400">
+                    <i class="fa fa-shield mr-2 text-secondary"></i>
+                    所有录音和转换在本地完成，不会上传到服务器
+                </div>
+            </div>
+        </section>
+
+        <!-- 工具主体 -->
+        <section class="max-w-4xl mx-auto bg-dark-card rounded-2xl p-6 md:p-8 card-shadow mb-16 animate-fadeIn" style="animation-delay: 0.2s">
+            <div class="mb-8">
+                <h3 class="text-2xl font-bold mb-2">录音与音频处理</h3>
+                <p class="text-gray-400">录制、上传和转换音频文件，支持多种格式</p>
+            </div>
+
+            <!-- 波形显示区域 -->
+            <div class="waveform-container mb-8 p-4 h-40 md:h-48">
+                <canvas id="waveform" class="w-full h-full"></canvas>
+                <div id="record-time" class="absolute bottom-4 right-4 bg-dark/70 px-3 py-1 rounded-full text-sm font-mono opacity-0 transition-opacity">00:00</div>
+            </div>
+
+            <!-- 状态提示 -->
+            <div id="status-text" class="text-center py-3 mb-6 text-gray-300 bg-dark/50 rounded-lg">
+                点击下方按钮开始录音或上传音频
+            </div>
+
+            <!-- 控制按钮 -->
+            <div class="grid grid-cols-3 gap-4 mb-6">
+                <button id="record-btn" class="recording-inactive rounded-xl p-4 flex flex-col items-center justify-center btn-effect">
+                    <i class="fa fa-microphone text-2xl md:text-3xl text-white"></i>
+                    <span class="mt-2 text-sm">录音</span>
+                </button>
+                <button id="play-btn" class="bg-dark-hover rounded-xl p-4 flex flex-col items-center justify-center btn-effect" disabled>
+                    <i class="fa fa-play text-2xl md:text-3xl text-white"></i>
+                    <span class="mt-2 text-sm">播放</span>
+                </button>
+                <button id="reset-btn" class="bg-dark-hover rounded-xl p-4 flex flex-col items-center justify-center btn-effect" disabled>
+                    <i class="fa fa-refresh text-2xl md:text-3xl text-white"></i>
+                    <span class="mt-2 text-sm">重置</span>
+                </button>
+            </div>
+
+            <!-- 功能按钮 -->
+            <div class="grid grid-cols-2 md:grid-cols-6 gap-4">
+                <label for="audio-upload" class="bg-dark-hover rounded-xl p-4 flex flex-col items-center justify-center btn-effect cursor-pointer">
+                    <i class="fa fa-upload text-2xl text-white"></i>
+                    <span class="mt-2 text-sm">上传音频</span>
+                    <input type="file" id="audio-upload" accept="audio/*" class="hidden">
+                </label>
+                <button id="convert-btn" class="bg-dark-hover rounded-xl p-4 flex flex-col items-center justify-center btn-effect" disabled>
+                    <i class="fa fa-exchange text-2xl text-white"></i>
+                    <span class="mt-2 text-sm">转MP3</span>
+                </button>
+                <button id="trim-btn" class="bg-dark-hover rounded-xl p-4 flex flex-col items-center justify-center btn-effect" disabled>
+                    <i class="fa fa-scissors text-2xl text-white"></i>
+                    <span class="mt-2 text-sm">剪辑</span>
+                </button>
+                <button id="effect-btn" class="bg-dark-hover rounded-xl p-4 flex flex-col items-center justify-center btn-effect" disabled>
+                    <i class="fa fa-magic text-2xl text-white"></i>
+                    <span class="mt-2 text-sm">音效</span>
+                </button>
+                <button id="download-btn" class="bg-primary rounded-xl p-4 flex flex-col items-center justify-center btn-effect" disabled>
+                    <i class="fa fa-download text-2xl text-white"></i>
+                    <span class="mt-2 text-sm">下载</span>
+                </button>
+                <button id="share-btn" class="bg-secondary rounded-xl p-4 flex flex-col items-center justify-center btn-effect" disabled>
+                    <i class="fa fa-share-alt text-2xl text-white"></i>
+                    <span class="mt-2 text-sm">分享</span>
+                </button>
+            </div>
+            
+            <!-- 音效面板 -->
+            <div id="effect-panel" class="mt-6 bg-dark rounded-xl p-4 hidden">
+                <h4 class="text-lg font-bold mb-3">音频效果器</h4>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-sm mb-1">变调 (半音)</label>
+                        <input type="range" id="pitch-control" min="-12" max="12" value="0" class="w-full">
+                        <div class="flex justify-between text-xs text-gray-400 mt-1">
+                            <span>-12</span>
+                            <span id="pitch-value">0</span>
+                            <span>12</span>
+                        </div>
+                    </div>
+                    <div>
+                        <label class="block text-sm mb-1">混响</label>
+                        <input type="range" id="reverb-control" min="0" max="100" value="0" class="w-full">
+                        <div class="flex justify-between text-xs text-gray-400 mt-1">
+                            <span>0%</span>
+                            <span id="reverb-value">0%</span>
+                            <span>100%</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="flex justify-end mt-4 space-x-2">
+                    <button id="apply-effect" class="bg-primary hover:bg-blue-600 text-white px-4 py-2 rounded-lg text-sm">应用</button>
+                    <button id="cancel-effect" class="bg-dark-hover hover:bg-gray-700 text-white px-4 py-2 rounded-lg text-sm">取消</button>
+                </div>
+            </div>
+
+            <!-- 转换进度 -->
+            <div id="convert-progress" class="mt-6 hidden">
+                <div class="flex justify-between items-center mb-2">
+                    <span class="text-sm text-gray-400">转换进度</span>
+                    <span id="progress-text" class="text-sm text-primary">0%</span>
+                </div>
+                <div class="w-full bg-dark rounded-full h-2.5">
+                    <div id="progress-bar" class="bg-primary h-2.5 rounded-full transition-all duration-300" style="width: 0%"></div>
+                </div>
+            </div>
+
+            <!-- 分享提示 -->
+            <div id="share-hint" class="mt-4 py-2 px-4 bg-dark/50 rounded-lg text-sm text-gray-400 hidden">
+                <i class="fa fa-info-circle mr-2"></i>
+                音频已准备好，您可以点击下载按钮保存文件或使用分享功能
+            </div>
+        </section>
+
+        <!-- 功能特点 -->
+        <section id="features" class="max-w-4xl mx-auto mb-16 animate-fadeIn" style="animation-delay: 0.3s">
+            <h3 class="text-2xl font-bold mb-8 text-center">功能特点</h3>
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <div class="feature-card bg-dark-card rounded-xl p-6 border border-dark-border">
+                    <div class="w-12 h-12 rounded-lg gradient-bg flex items-center justify-center mb-4">
+                        <i class="fa fa-microphone text-white"></i>
+                    </div>
+                    <h4 class="text-lg font-bold mb-2">高质量录音</h4>
+                    <p class="text-gray-400 text-sm">支持多种音频格式录制，提供清晰的录音效果</p>
+                </div>
+                <div class="feature-card bg-dark-card rounded-xl p-6 border border-dark-border">
+                    <div class="w-12 h-12 rounded-lg gradient-bg flex items-center justify-center mb-4">
+                        <i class="fa fa-exchange text-white"></i>
+                    </div>
+                    <h4 class="text-lg font-bold mb-2">格式转换</h4>
+                    <p class="text-gray-400 text-sm">支持多种音频格式转换，满足不同平台需求</p>
+                </div>
+                <div class="feature-card bg-dark-card rounded-xl p-6 border border-dark-border">
+                    <div class="w-12 h-12 rounded-lg gradient-bg flex items-center justify-center mb-4">
+                        <i class="fa fa-shield text-white"></i>
+                    </div>
+                    <h4 class="text-lg font-bold mb-2">隐私保护</h4>
+                    <p class="text-gray-400 text-sm">所有处理在本地完成，无需上传到服务器</p>
+                </div>
+            </div>
+        </section>
+
+        <!-- 使用说明 -->
+        <section id="usage" class="max-w-4xl mx-auto mb-16 animate-fadeIn" style="animation-delay: 0.4s">
+            <h3 class="text-2xl font-bold mb-8 text-center">使用说明</h3>
+            <div class="bg-dark-card rounded-xl p-6 border border-dark-border">
+                <ol class="space-y-4">
+                    <li class="flex items-start">
+                        <span class="flex-shrink-0 w-6 h-6 rounded-full bg-primary text-white text-xs flex items-center justify-center mr-3 mt-1">1</span>
+                        <div>
+                            <h4 class="font-bold">开始录音</h4>
+                            <p class="text-gray-400 text-sm">点击"录音"按钮开始录制音频，再次点击停止录音</p>
+                        </div>
+                    </li>
+                    <li class="flex items-start">
+                        <span class="flex-shrink-0 w-6 h-6 rounded-full bg-primary text-white text-xs flex items-center justify-center mr-3 mt-1">2</span>
+                        <div>
+                            <h4 class="font-bold">上传音频</h4>
+                            <p class="text-gray-400 text-sm">点击"上传音频"按钮选择本地音频文件进行处理</p>
+                        </div>
+                    </li>
+                    <li class="flex items-start">
+                        <span class="flex-shrink-0 w-6 h-6 rounded-full bg-primary text-white text-xs flex items-center justify-center mr-3 mt-1">3</span>
+                        <div>
+                            <h4 class="font-bold">编辑处理</h4>
+                            <p class="text-gray-400 text-sm">使用剪辑、音效等功能对音频进行编辑处理</p>
+                        </div>
+                    </li>
+                    <li class="flex items-start">
+                        <span class="flex-shrink-0 w-6 h-6 rounded-full bg-primary text-white text-xs flex items-center justify-center mr-3 mt-1">4</span>
+                        <div>
+                            <h4 class="font-bold">下载分享</h4>
+                            <p class="text-gray-400 text-sm">点击"下载"按钮保存处理后的音频文件</p>
+                        </div>
+                    </li>
+                </ol>
+            </div>
+        </section>
+
+        <!-- 常见问题 -->
+        <section id="faq" class="max-w-4xl mx-auto animate-fadeIn" style="animation-delay: 0.5s">
+            <h3 class="text-2xl font-bold mb-8 text-center">常见问题</h3>
+            <div class="space-y-4">
+                <div class="bg-dark-card rounded-xl border border-dark-border overflow-hidden">
+                    <button class="w-full p-4 text-left flex justify-between items-center">
+                        <span class="font-bold">录音功能无法使用怎么办？</span>
+                        <i class="fa fa-chevron-down text-gray-400"></i>
+                    </button>
+                    <div class="px-4 pb-4 text-gray-400 text-sm hidden">
+                        <p>请检查浏览器是否允许访问麦克风，确保麦克风设备正常工作。如果问题仍然存在，请尝试刷新页面或更换浏览器。</p>
+                    </div>
+                </div>
+                <div class="bg-dark-card rounded-xl border border-dark-border overflow-hidden">
+                    <button class="w-full p-4 text-left flex justify-between items-center">
+                        <span class="font-bold">支持哪些音频格式？</span>
+                        <i class="fa fa-chevron-down text-gray-400"></i>
+                    </button>
+                    <div class="px-4 pb-4 text-gray-400 text-sm hidden">
+                        <p>支持常见的音频格式，包括 WAV、MP3、OGG、AAC 等。转换功能可将音频转换为 MP3 格式。</p>
+                    </div>
+                </div>
+                <div class="bg-dark-card rounded-xl border border-dark-border overflow-hidden">
+                    <button class="w-full p-4 text-left flex justify-between items-center">
+                        <span class="font-bold">音频文件会上传到服务器吗？</span>
+                        <i class="fa fa-chevron-down text-gray-400"></i>
+                    </button>
+                    <div class="px-4 pb-4 text-gray-400 text-sm hidden">
+                        <p>不会。所有录音和处理操作都在您的浏览器中本地完成，音频文件不会上传到任何服务器。</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <!-- 页脚 -->
+    <footer class="bg-dark-card border-t border-dark-border py-8">
+        <div class="container mx-auto px-4 text-center">
+            <p class="text-gray-400 text-sm">© 2025 传声筒. 保留所有权利.</p>
+        </div>
+    </footer>
+
+    <!-- 音频元素 -->
+    <audio id="audio-player" class="hidden"></audio>
+
+    <script src="src/app.js" type="module"></script>
+</body>
+</html>
